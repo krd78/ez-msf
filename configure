@@ -1,0 +1,80 @@
+#! /bin/sh
+
+set -e
+
+DB_YML="$(dirname $0)/msf-docker/database.yml"
+DB_DOCKERFILE="$(dirname $0)/psql-docker/Dockerfile"
+
+usage() {
+    cat << EoF
+Usage: ./$0 [-a|-h]
+Options:
+    -h or --help                    This help menu
+    -a or --auto                    Automate the configuration step
+    -r or --reset                   Reset the configuration files
+                                    files: $DB_YML, $DB_DOCKERFILE
+EoF
+    exit 0
+}
+
+ask_conf() {
+    if [ -z "$IS_AUTO" ]; then
+        read -p "Database name: " DB_NAME
+        read -p "Database username: " DB_USERNAME
+        read -p "Database password: " DB_PASSWD
+    fi
+    [ -n "$DB_NAME" ] || DB_NAME="msfdatabase"
+    [ -n "$DB_USERNAME" ] || DB_USERNAME="msf"
+    [ -n "$DB_PASSWD" ] || DB_PASSWD="nopasswd"
+}
+
+install_conf() {
+    sed -i s/"DB_NAME"/"$DB_NAME"/g $DB_DOCKERFILE
+    sed -i s/"DB_NAME"/"$DB_NAME"/g $DB_YML
+    sed -i s/"DB_USERNAME"/"$DB_USERNAME"/g $DB_DOCKERFILE
+    sed -i s/"DB_USERNAME"/"$DB_USERNAME"/g $DB_YML
+    sed -i s/"DB_PASSWD"/"$DB_PASSWD"/g $DB_DOCKERFILE
+    sed -i s/"DB_PASSWD"/"$DB_PASSWD"/g $DB_YML
+}
+
+reset_conf() {
+    cat << EoF > $DB_YML
+development: &pgsql
+  adapter: postgresql
+  database: DB_NAME
+  username: DB_USERNAME
+  password: DB_PASSWD
+  host: localhost
+  port: 5432
+  pool: 200 
+  timeout: 5
+
+production: &production
+  <<: *pgsql
+EoF
+
+    cp $DB_DOCKERFILE.sample $DB_DOCKERFILE
+
+    exit 0
+}
+
+main() {
+    ask_conf
+    install_conf
+}
+
+while [ -n "$1" ]; do
+    case "$1" in
+        -h|--help)
+            usage
+        ;;
+        -a|--auto)
+            IS_AUTO=1
+        ;;
+        -r|--reset)
+            reset_conf
+        ;;
+    esac
+    shift
+done
+main
