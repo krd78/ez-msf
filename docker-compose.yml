@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  msfdb:
+    build: ./psql-docker
+    image: msfdb
+    networks:
+      - msfdb-network
+    tty: true
+  msfconsole:
+    build: ./msf-docker
+    image: msfconsole
+    networks:
+      - msfdb-network
+    depends_on:
+      - msfdb
+    tty: true
+    stdin_open: true
+
+networks:
+  msfdb-network:
